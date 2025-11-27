@@ -1,14 +1,21 @@
+
 import React from 'react';
 import Button from './Button';
 import Section from './Section';
-import { Play } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Play } from 'lucide-react';
 
 interface HeroProps {
   onBookNow: () => void;
 }
 
 const Hero: React.FC<HeroProps> = ({ onBookNow }) => {
+  const handleVideoClick = () => {
+    // Error 153 means embedding is blocked by the video owner.
+    // Opening in a new tab ensures the user can still watch it.
+    window.open("https://www.youtube.com/watch?v=xqZP04y3mTU", "_blank");
+  };
+
   return (
     <Section className="bg-brand-cream relative overflow-hidden !py-12 md:!py-20">
         {/* Background decorative elements */}
@@ -43,27 +50,41 @@ const Hero: React.FC<HeroProps> = ({ onBookNow }) => {
                 </p>
             </motion.div>
 
-            {/* Video Placeholder - Right Column */}
+            {/* Video Player - Right Column */}
             <motion.div 
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
               className="w-full relative"
             >
-                <div className="w-full aspect-video bg-white rounded-2xl shadow-2xl border-4 border-white relative overflow-hidden group cursor-pointer transform transition-transform hover:scale-[1.02]">
-                    {/* Simulated Youtube Embed */}
+                <div 
+                    className="w-full aspect-video bg-black rounded-2xl shadow-2xl border-4 border-white relative overflow-hidden group cursor-pointer"
+                    onClick={handleVideoClick}
+                >
                     <img 
-                        src="https://images.unsplash.com/photo-1586281380349-632531db7ed4?q=80&w=2070&auto=format&fit=crop" 
-                        alt="Resume Writing Success" 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                        src="https://img.youtube.com/vi/xqZP04y3mTU/maxresdefault.jpg" 
+                        alt="Video Thumbnail" 
+                        className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-300"
                     />
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/30 transition-colors">
-                        <div className="w-20 h-20 bg-brand-red rounded-full flex items-center justify-center shadow-lg animate-pulse hover:scale-110 transition-transform">
-                            <Play fill="white" className="text-white ml-2" size={32} />
+                    
+                    {/* Play Button Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="relative">
+                            {/* Pulse Effect */}
+                            <div className="absolute inset-0 bg-brand-red rounded-full animate-ping opacity-75"></div>
+                            
+                            {/* Button */}
+                            <div className="w-16 h-16 md:w-20 md:h-20 bg-brand-red text-white rounded-full flex items-center justify-center shadow-lg shadow-red-500/50 transform group-hover:scale-110 transition-transform duration-300 relative z-10">
+                                <Play className="w-8 h-8 md:w-10 md:h-10 ml-1 fill-current" />
+                            </div>
                         </div>
                     </div>
-                    <div className="absolute bottom-4 left-4 text-white font-medium text-sm bg-black/50 px-3 py-1.5 rounded-full backdrop-blur-sm">
-                        🎥 আমাদের সাকসেস স্টোরি দেখুন
+
+                    {/* Text Hint */}
+                    <div className="absolute bottom-4 left-0 right-0 text-center">
+                        <span className="bg-black/50 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm">
+                            Click to watch on YouTube
+                        </span>
                     </div>
                 </div>
                 

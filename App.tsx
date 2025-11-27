@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -6,7 +7,6 @@ import ProblemSolution from './components/ProblemSolution';
 import Stats from './components/Stats';
 import Testimonials from './components/Testimonials';
 import Process from './components/Process';
-import SuccessStories from './components/SuccessStories';
 import Footer from './components/Footer';
 import ChatWidget from './components/ChatWidget';
 import BookingModal from './components/BookingModal';
@@ -54,7 +54,6 @@ function App() {
         <Stats />
         <Testimonials />
         <Process onBookNow={openBooking} />
-        <SuccessStories />
       </main>
       <Footer />
       <ChatWidget />

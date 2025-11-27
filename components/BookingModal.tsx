@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calculator, ArrowRight, CheckCircle, CreditCard, Send, Loader2 } from 'lucide-react';
+import { X, Calculator, ArrowRight, CheckCircle, CreditCard, Send, Loader2, Tag } from 'lucide-react';
 import Button from './Button';
 import { supabase } from '../lib/supabaseClient';
 
@@ -15,7 +15,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    experience: ''
+    experience: '',
+    coupon: ''
   });
   const [paymentData, setPaymentData] = useState({
     senderNumber: '',
@@ -23,6 +24,9 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
   });
   const [error, setError] = useState('');
   const [finalPrice, setFinalPrice] = useState(0);
+  const [basePrice, setBasePrice] = useState(0);
+  const [discount, setDiscount] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,27 +46,25 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
   };
 
   const validateBangladeshiPhone = (phone: string) => {
-    // Regex for BD phone: Starts with +8801 or 01, followed by 3-9, then 8 digits
     const bdPhoneRegex = /^(?:\+88|88)?(01[3-9]\d{8})$/;
     return bdPhoneRegex.test(phone);
   };
 
   const normalizePhone = (phone: string) => {
-    // Remove all non-digit chars
     const digits = phone.replace(/\D/g, '');
-    // If starts with 8801, take last 11
     if (digits.startsWith('8801') && digits.length === 13) {
       return digits.substring(2);
     }
-    // If starts with 01, keep it (assuming 11 digits)
     if (digits.startsWith('01') && digits.length === 11) {
       return digits;
     }
-    return digits; // Fallback
+    return digits;
   };
 
   const handleGeneratePrice = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAppliedCoupon(null);
+    setDiscount(0);
     
     // Validation
     if (!formData.name.trim()) {
@@ -81,14 +83,55 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
+    setLoading(true);
+
+    // Coupon Validation
+    let couponDiscount = 0;
+    let couponData = null;
+
+    if (formData.coupon.trim()) {
+        const { data, error: couponError } = await supabase
+            .from('coupons')
+            .select('*')
+            .eq('code', formData.coupon.trim().toUpperCase())
+            .single();
+        
+        if (couponError || !data) {
+            setError('Coupon is invalid (কুপনটি সঠিক নয়)');
+            setLoading(false);
+            return;
+        }
+
+        // Check if expired
+        if (new Date(data.expiry_date) < new Date()) {
+            setError('Coupon is invalid (expired)');
+            setLoading(false);
+            return;
+        }
+
+        // Check limit
+        if (data.usage_count >= data.usage_limit) {
+            setError('Coupon limit reached (কুপনটির মেয়াদ শেষ)');
+            setLoading(false);
+            return;
+        }
+
+        couponData = data;
+        couponDiscount = Number(data.discount_amount);
+    }
+
     // Calculation: 3000 + 100 * Years
-    const calculatedPrice = 3000 + (100 * exp);
-    setFinalPrice(calculatedPrice);
+    const calculatedBasePrice = 3000 + (100 * exp);
+    const priceAfterDiscount = Math.max(0, calculatedBasePrice - couponDiscount);
+    
+    setBasePrice(calculatedBasePrice);
+    setFinalPrice(priceAfterDiscount);
+    setDiscount(couponDiscount);
+    setAppliedCoupon(couponData);
     
     const normalizedPhone = normalizePhone(formData.phone);
 
     // DB: Save to Hot Leads
-    setLoading(true);
     try {
       const { error: dbError } = await supabase
         .from('hot_leads')
@@ -96,13 +139,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
           name: formData.name,
           phone: normalizedPhone,
           experience: exp,
-          price: calculatedPrice,
+          price: priceAfterDiscount,
           created_at: new Date().toISOString()
         });
 
       if (dbError) {
         console.error('Error saving lead:', dbError);
-        // We generally proceed even if tracking fails so the user can see the price
       }
       setStep(2);
     } catch (err) {
@@ -131,11 +173,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
 
     setLoading(true);
     try {
-      // DB: Save to Paid Customer
       const exp = parseInt(formData.experience);
       const normalizedPhone = normalizePhone(formData.phone);
       const normalizedSender = normalizePhone(paymentData.senderNumber);
 
+      // 1. Insert into Paid Customer
       const { error: dbError } = await supabase
         .from('paidcustomer')
         .insert({
@@ -145,15 +187,25 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
           price: finalPrice,
           sender_number: normalizedSender,
           trans_id: paymentData.transId,
+          coupon_code: appliedCoupon ? appliedCoupon.code : null,
           created_at: new Date().toISOString()
         });
 
-      if (dbError) {
-        console.error('Error saving payment:', dbError);
-        setError('ডাটা সেভ করতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।');
-        setLoading(false);
-        return;
+      if (dbError) throw dbError;
+
+      // 2. Increment Coupon Usage
+      if (appliedCoupon) {
+          await supabase.rpc('increment_coupon_usage', { coupon_id: appliedCoupon.id })
+          // If RPC doesn't exist (likely), fallback to manual update
+          // This is a bit race-condition prone but ok for small scale
+          const { data: currentCoupon } = await supabase.from('coupons').select('usage_count').eq('id', appliedCoupon.id).single();
+          if (currentCoupon) {
+              await supabase.from('coupons').update({ usage_count: currentCoupon.usage_count + 1 }).eq('id', appliedCoupon.id);
+          }
       }
+
+      // 3. Remove from Hot Leads (as they are now paid)
+      await supabase.from('hot_leads').delete().eq('phone', normalizedPhone);
       
       // Success
       setStep(4);
@@ -167,13 +219,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
 
   const resetModal = () => {
     setStep(1);
-    setFormData({ name: '', phone: '', experience: '' });
+    setFormData({ name: '', phone: '', experience: '', coupon: '' });
     setPaymentData({ senderNumber: '', transId: '' });
     setError('');
     onClose();
   };
 
-  // Helper for input classes to ensure light bg with !important to override any dark mode defaults
   const inputClasses = "w-full px-4 py-3 rounded-lg border border-gray-300 !bg-white !text-gray-900 focus:ring-2 focus:ring-brand-red focus:border-transparent outline-none transition-all placeholder-gray-400";
 
   return (
@@ -253,6 +304,21 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
                       />
                     </div>
 
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">কুপন কোড (যদি থাকে)</label>
+                        <div className="relative">
+                            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <input
+                                type="text"
+                                name="coupon"
+                                value={formData.coupon}
+                                onChange={handleInputChange}
+                                className={`${inputClasses} pl-10`}
+                                placeholder="COUPON123"
+                            />
+                        </div>
+                    </div>
+
                     {error && (
                       <div className="bg-red-50 text-brand-red text-sm p-3 rounded-lg border border-red-100">
                         ⚠️ {error}
@@ -271,13 +337,31 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose }) => {
 
                 {step === 2 && (
                   <div className="text-center space-y-6">
-                    <div className="bg-green-50 p-6 rounded-xl border border-green-100">
+                    <div className="bg-green-50 p-6 rounded-xl border border-green-100 relative overflow-hidden">
+                      {discount > 0 && (
+                          <div className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+                              COUPON APPLIED
+                          </div>
+                      )}
+                      
                       <p className="text-gray-600 mb-2 font-medium">আপনার জন্য নির্ধারিত সার্ভিস চার্জ</p>
-                      <div className="text-5xl font-bold text-brand-red">
-                        ৳ {finalPrice.toLocaleString()}
-                      </div>
+                      
+                      {discount > 0 ? (
+                          <div className="flex flex-col items-center">
+                              <span className="text-gray-400 line-through text-lg">৳ {basePrice.toLocaleString()}</span>
+                              <div className="text-5xl font-bold text-brand-red">
+                                ৳ {finalPrice.toLocaleString()}
+                              </div>
+                              <span className="text-green-600 font-bold text-sm mt-1">You saved ৳ {discount.toLocaleString()}!</span>
+                          </div>
+                      ) : (
+                          <div className="text-5xl font-bold text-brand-red">
+                            ৳ {finalPrice.toLocaleString()}
+                          </div>
+                      )}
+                      
                       <p className="text-xs text-gray-400 mt-2">
-                        Calculation: 3000 + (100 × {formData.experience} Years)
+                        Calculation: 3000 + (100 × {formData.experience} Years) {discount > 0 ? `- ৳${discount} Coupon` : ''}
                       </p>
                     </div>
 

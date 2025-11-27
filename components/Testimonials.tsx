@@ -1,6 +1,6 @@
 import React from 'react';
 import Section from './Section';
-import { Quote, ThumbsUp, MessageCircle, Share2 } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Share2 } from 'lucide-react';
 
 const TestimonialCard: React.FC<{ name: string, role: string, text: string, img: string }> = ({ name, role, text, img }) => (
   <div className="bg-white rounded-xl shadow border border-gray-200 p-6 flex flex-col h-full">

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, DollarSign, FileText, Settings, Download, Search, 
-  CheckCircle, Clock, XCircle, MoreHorizontal, UserPlus, Calendar,
-  TrendingUp, Lock, Menu, X, Ticket, Trash2, Filter
+  CheckCircle, Clock, UserPlus, Calendar,
+  TrendingUp, Lock, Menu, X, Ticket, Trash2
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import Button from './Button';
@@ -146,7 +146,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     const csvContent = [
       headers.join(','),
       ...filteredData.map(row => headers.map(fieldName => 
-        JSON.stringify(row[fieldName], (key, value) => value === null ? '' : value)
+        JSON.stringify(row[fieldName], (_key, value) => value === null ? '' : value)
       ).join(','))
     ].join('\n');
 

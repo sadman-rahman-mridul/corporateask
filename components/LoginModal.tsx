@@ -88,7 +88,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
     }
   };
 
-  const inputClasses = "w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 !bg-white !text-gray-900 focus:ring-2 focus:ring-brand-red focus:border-transparent outline-none transition-all placeholder-gray-400";
+  const inputClasses = "w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 !bg-white text-black focus:ring-2 focus:ring-brand-red focus:border-transparent outline-none transition-all placeholder-gray-400";
 
   return (
     <AnimatePresence>

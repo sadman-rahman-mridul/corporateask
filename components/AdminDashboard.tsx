@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, DollarSign, FileText, Settings, Download, Search, 
   CheckCircle, Clock, UserPlus, Calendar,
-  TrendingUp, Lock, Menu, X, Ticket, Trash2
+  TrendingUp, Lock, Menu, X, Ticket, Trash2, Flame
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import Button from './Button';
@@ -15,7 +15,7 @@ interface AdminDashboardProps {
 type TimeFilter = 'all' | 'year' | 'month' | 'week' | 'today';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState<'hot_leads' | 'paid_customers' | 'users' | 'add_admin' | 'coupons'>('hot_leads');
+  const [activeTab, setActiveTab] = useState<'resume_builder' | 'hot_leads' | 'paid_customers' | 'users' | 'add_admin' | 'coupons'>('hot_leads');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [newAdminData, setNewAdminData] = useState({ username: '', password: '' });
@@ -59,6 +59,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     if (activeTab === 'paid_customers') tableName = 'paidcustomer';
     if (activeTab === 'users') tableName = 'users';
     if (activeTab === 'coupons') tableName = 'coupons';
+    if (activeTab === 'resume_builder') tableName = 'candidates';
 
     if (tableName) {
       const { data: result, error } = await supabase
@@ -279,9 +280,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {renderSidebarItem('hot_leads', <FileText size={18} />, 'Hot Leads')}
+          <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider mt-2 mb-1">
+            Leads
+          </div>
+          {renderSidebarItem('resume_builder', <FileText size={18} />, 'Resume Builder')}
+          {renderSidebarItem('hot_leads', <Flame size={18} />, 'Hot Leads')}
+
+          <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-1">
+            Sales & Ops
+          </div>
           {renderSidebarItem('paid_customers', <DollarSign size={18} />, 'Paid Customers')}
           {renderSidebarItem('coupons', <Ticket size={18} />, 'Coupons')}
+
+          <div className="px-4 py-2 text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-1">
+            System
+          </div>
           {renderSidebarItem('users', <Users size={18} />, 'Registered Users')}
           {renderSidebarItem('add_admin', <Settings size={18} />, 'Add Admin')}
         </nav>
@@ -545,9 +558,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                       {activeTab === 'users' && <th className="px-6 py-4">Username</th>}
                       {activeTab === 'users' && <th className="px-6 py-4">Password</th>}
                       {activeTab === 'users' && <th className="px-6 py-4">Role</th>}
-                      {activeTab !== 'users' && <th className="px-6 py-4 min-w-[100px] cursor-pointer hover:text-gray-900 group" onClick={() => handleSort('price')}>
+                      {activeTab === 'resume_builder' && (
+                        <>
+                           <th className="px-6 py-4 min-w-[150px]">Email</th>
+                           <th className="px-6 py-4 min-w-[150px]">Resume</th>
+                        </>
+                      )}
+                      {activeTab === 'hot_leads' && <th className="px-6 py-4 min-w-[100px] cursor-pointer hover:text-gray-900 group" onClick={() => handleSort('price')}>
                           <div className="flex items-center">Price <SortIcon column="price" /></div>
                       </th>}
+                      {activeTab === 'paid_customers' && <th className="px-6 py-4 min-w-[100px] cursor-pointer hover:text-gray-900 group" onClick={() => handleSort('price')}>
+                          <div className="flex items-center">Price <SortIcon column="price" /></div>
+                      </th>}
+                      
                       {activeTab === 'paid_customers' && (
                          <>
                            <th className="px-6 py-4 min-w-[140px]">Coupon</th>
@@ -605,7 +628,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                                 </span>
                              </td>
                           )}
-                          {activeTab !== 'users' && (
+                          {activeTab === 'resume_builder' && (
+                            <>
+                              <td className="px-6 py-4">
+                                  {item.email || '-'}
+                              </td>
+                              <td className="px-6 py-4">
+                                  {item.resume_url ? (
+                                      <a href={item.resume_url} target="_blank" rel="noopener noreferrer" className="text-brand-red hover:underline font-medium flex items-center gap-1">
+                                          <FileText size={14} /> Download
+                                      </a>
+                                  ) : (
+                                      <span className="text-gray-400 text-xs">No File</span>
+                                  )}
+                              </td>
+                            </>
+                          )}
+                          {(activeTab === 'hot_leads' || activeTab === 'paid_customers') && (
                             <td className="px-6 py-4 font-bold text-brand-red whitespace-nowrap">৳ {item.price}</td>
                           )}
                           
